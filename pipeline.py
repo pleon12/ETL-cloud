@@ -1,11 +1,11 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions, StandardOptions
-import pandas as pd  
+import pandas as pd
 from io import BytesIO
-from google.cloud import storage  
+from google.cloud import storage
 
 
-
+# Lecutra y transformación del xlsx
 class ReadExcelFn(beam.DoFn):
     def __init__(self, bucket_name, file_name):
         self.bucket_name = bucket_name
@@ -18,18 +18,18 @@ class ReadExcelFn(beam.DoFn):
         blob = bucket.blob(self.file_name)
         data = blob.download_as_bytes()
 
-       
+        
         df = pd.read_excel(BytesIO(data))
 
-        # Convierte las filas del df a diccionarios para procesarlas en Apache Beam
+        # Convierte las filas del df a diccionarios para Apache Beam
         for _, row in df.iterrows():
             yield row.to_dict()
 
 
-# Limpieza y transformación de datos
-class CleanAndTransformFn(beam.DoFn):
+# Limpieza y pivoteo de datos
+class CleanAndPivotFn(beam.DoFn):
     def process(self, element):
-        # Extrae valores 
+        # Extrae valores comunes
         año = int(element['Año'])
         entidad = element['Entidad'].strip()
         municipio = element['Municipio'].strip()
@@ -44,9 +44,9 @@ class CleanAndTransformFn(beam.DoFn):
             "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
         ]
 
-        # Genera una fila por mes
+        # Genera una fila por cada mes
         for mes in meses:
-            casos = element[mes]
+            casos = element.get(mes, None)
             if pd.notnull(casos) and isinstance(casos, (int, float)):  
                 yield {
                     'año': año,
@@ -64,18 +64,16 @@ class CleanAndTransformFn(beam.DoFn):
 def run():
     # Config pipeline
     options = PipelineOptions()
-
-    # Config GCP
     gcp_options = options.view_as(GoogleCloudOptions)
-    gcp_options.project = 'pipeline-incidencia-delictiva'  
-    gcp_options.region = 'us-central1'  
+    gcp_options.project = 'pipeline-incidencia-delictiva'
+    gcp_options.region = 'us-central1'
     gcp_options.temp_location = 'gs://pipeline-incidencia-delictiva-bucket/temp'
 
-    # Dataflow como runner
+    # Config runner
     standard_options = options.view_as(StandardOptions)
-    standard_options.runner = 'DataflowRunner'  
+    standard_options.runner = 'DataflowRunner'
 
-    # Crear el pipeline
+    # Config bucket y file
     bucket_name = 'pipeline-incidencia-delictiva-bucket'
     file_name = '2024.xlsx'
 
@@ -83,7 +81,7 @@ def run():
         (
             p
             | 'Leer archivo XLSX' >> beam.ParDo(ReadExcelFn(bucket_name, file_name))
-            | 'Transformar datos' >> beam.ParDo(CleanAndTransformFn())
+            | 'Limpiar y transformar datos' >> beam.ParDo(CleanAndPivotFn())
             | 'Escribir en BigQuery' >> beam.io.WriteToBigQuery(
                 'pipeline-incidencia-delictiva:incidencia_delictiva.incidencia_raw',
                 schema=(
