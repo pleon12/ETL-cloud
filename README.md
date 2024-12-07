@@ -11,6 +11,9 @@ Este proyecto de ingeniería de datos en GCP está enfocado en desarrollar un pi
 - <img width="18" alt="image" src="https://seeklogo.com/images/G/google-bigquery-logo-6E9BA2D0A3-seeklogo.com.png"> **BigQuery** como almacén de datos para consultas analíticas.
 - <img width="18" alt="image" src="https://seeklogo.com/images/G/google-looker-logo-B27BD25E4E-seeklogo.com.png"> **Looker** para la visualización de resultados y generación de reportes.
 
+## Arquitectura de solución
+![ETL_diagram](https://github.com/user-attachments/assets/c54dd71a-c716-4742-acc7-59a9ce3716c7)
+
 ---
 
 ## 🗂️ Datos de entrada
